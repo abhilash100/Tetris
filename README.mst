@@ -1,0 +1,14 @@
+##################################################
+### Simple Tetris game implementation using python
+### Author : abhilash100
+##################################################
+
+Description : This is a simple of the tetris game using PyGame library
+Version :
+    Python : 3.8.2
+    Pygame : 1.9.8
+
+Contributors :
+    @abhilash100
+
+This is a simple implementation. Any feedback to improve the tool is welcome.
