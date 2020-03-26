@@ -12,3 +12,13 @@ Contributors :
     @abhilash100
 
 This is a simple implementation. Any feedback to improve the tool is welcome.
+
+Controls:
+UP   : Rotate tetramino clockwise
+DOWN : Increase descent speed of tetramino
+RIGHT: Move tetramino right
+LEFT : Move tetramino left
+P    : Pause Game. Click anyother key to resume
+
+Bug Report :
+Pygame screen getting frozen while event handling. Will need to fix

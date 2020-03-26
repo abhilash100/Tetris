@@ -3,16 +3,208 @@ from TetraMinos import Tetraminos;
 from ColorDictionary import Colors;
 import sys;
 
+game_settings = {
+    'rows': 10,
+    'cols': 10,
+    'square_size': 20
+}
 
-def create_grid(rows, cols):
-    grid = [];
-    for i in range(rows):
-        new_line = []
-        for j in range(cols):
-            new_line.append(0);
-        grid.append(new_line);
 
-    return grid;
+class TetrisApp:
+    def __init__(self):
+        self.rows = game_settings['rows'];
+        self.cols = game_settings['cols'];
+        self.square_size = game_settings['square_size'];
+        self.partition_size = int(game_settings['square_size'] / 10);
+        self.grid = self.create_grid();
+        self.initiate_pygame_params();
+        self.tetraminos = Tetraminos();
+        self.create_new_tetramino();
+        self.pause = False;
+
+    def initiate_pygame_params(self):
+        pg.init();
+        self.screen = pg.display;
+        self.screen.set_mode(((self.rows * self.square_size) + (self.rows - 1) * self.partition_size,
+                              self.cols * self.square_size + (self.cols - 1) * self.partition_size));
+        self.screen.set_caption('Tetris');
+        #pg.time.set_timer(pg.USEREVENT + 1, 750);
+        clock = pg.time.Clock();
+        clock.tick(30);
+        pg.event.set_blocked(pg.MOUSEMOTION);
+
+    def create_grid(self):
+        grid = [];
+        for i in range(self.rows):
+            new_line = []
+            for j in range(self.cols):
+                new_line.append(0);
+            grid.append(new_line);
+
+        return grid;
+
+    def create_new_tetramino(self):
+        self.curr_tetramino = self.tetraminos.generate_random_tetramino();
+        self.start_x = self.rows / 2;
+        self.start_y = 0;
+
+    def handle_event(self, event):
+        """Event handler"""
+        # Event handling
+        shape = self.curr_tetramino.get_shape();
+
+        if event.type == pg.QUIT:
+            print("Quitting game...");
+            pg.quit();
+            sys.exit();
+        if event.type == pg.KEYDOWN:
+            print(event);
+            if event.key == pg.K_LEFT:
+                collision = self.is_collided(False);
+                if self.start_x > 0 and not collision:
+                    self.start_x -= 1;
+            if event.key == pg.K_RIGHT:
+                collision = self.is_collided(False);
+                if self.start_x + len(shape.get_rows()) < self.cols and not collision:
+                    print("Listen for event : " + str(self.start_x) + " " + str(self.start_y))
+                    self.start_x += 1;
+            if event.key == pg.K_UP:
+                self.curr_tetramino.rotate_clockwise();
+            if event.key == pg.K_DOWN:
+                if not self.is_collided(True):
+                    self.start_y += 1;
+            if event.key == pg.K_p:
+                print("Pausing game...");
+                self.pause = True;
+                self.pause_game();
+
+    def draw_grid(self):
+        """Draw grid defined by the 2D array. Values of the array elements indicate different colors present in the
+        array """
+        # Set screen to black
+        self.screen.get_surface().fill(Colors.BLACK.value);
+
+        square_size = self.square_size;
+        partition_size = self.partition_size;
+
+        # Draw grid
+        for i in range(self.rows):
+            for j in range(self.cols):
+                xc = 0 if i == 0 else (square_size * i + i * partition_size);
+                yc = 0 if j == 0 else (square_size * j + j * partition_size);
+
+                grid_value = self.grid[i][j];
+                color = GridColors.get_color(grid_value).value;
+                pg.draw.rect(self.screen.get_surface(), color,
+                             (xc, yc, self.square_size, self.square_size));
+
+    def is_collided(self, lookAhead):
+        """Return True/False based on whether collision has happened"""
+        shape = self.curr_tetramino.get_shape();
+        array2d = shape.array2d;
+
+        for i in range(len(shape.get_rows())):
+            for j in range(len(shape.get_cols())):
+                pixel_value = array2d[i][j];
+
+                xi = int(self.start_x + i);
+                yi = int(self.start_y + j);
+
+                # print("Is collided : " + str(xi) + " " + str(yi));
+                # End of grid
+                if yi == self.rows - 1:
+                    print("Collided at 1(" + str(xi) + "," + str(yi) + ")");
+                    return True;
+
+                if lookAhead:
+                    yi += 1;
+                if self.grid[xi][yi] != 0 and pixel_value != 0:
+                    # print(str(xi) + " " + str(yi));
+                    print("Collided at 2(" + str(xi) + "," + str(yi) + ")");
+                    print(str(self.grid[xi][yi]) + " " + str(pixel_value));
+                    return True;
+
+        return False;
+
+    def draw_stone(self):
+        """Draws the tetramino in the grid. Draws grid followed by tetramino"""
+        self.draw_grid();
+        shape = self.curr_tetramino.get_shape();
+
+        for i in range(len(shape.get_rows())):
+            for j in range(len(shape.get_cols())):
+                array2d = shape.array2d
+                pixel_value = array2d[i][j];
+                pixel_color = GridColors.get_color(pixel_value).value;
+
+                xi = self.start_x + i;
+                yi = self.start_y + j;
+
+                x = 0 if xi == 0 else self.square_size * xi + xi * self.partition_size;
+                y = 0 if yi == 0 else self.square_size * yi + yi * self.partition_size;
+
+                rect = (x, y, self.square_size, self.square_size);
+                pg.draw.rect(self.screen.get_surface(), pixel_color, rect);
+
+    def update_grid(self):
+        """Updates the grid values. Everytime collision happens, we need to update the grid for next iteration"""
+        shape = self.curr_tetramino.get_shape();
+
+        for i in range(len(shape.get_rows())):
+            for j in range(len(shape.get_cols())):
+                array2d = shape.array2d
+                pixel_value = array2d[i][j];
+
+                xi = int(self.start_x + i);
+                yi = int(self.start_y + j);
+
+                print("Update grid : " + str(xi) + " " + str(yi));
+                if pixel_value != 0:
+                    self.grid[xi][yi] = int(pixel_value);
+
+        ##clear_full_rows(grid);
+
+    def pause_game(self):
+        if not self.pause:
+            return;
+        while 1:
+            for event in pg.event.get():
+                if event.type == pg.KEYDOWN:
+                    print("Key pressed. Resuming game...");
+                    self.pause = False;
+                    return;
+
+    def run(self):
+        close = False;
+        pg.event.wait();
+
+        while not close:
+            self.create_new_tetramino();
+            collision = self.is_collided(True);
+
+            if collision:
+                # self.pause = True;
+                # self.pause_game();
+                print("Game over.... You lost");
+                pg.quit();
+                sys.exit(1);
+
+            while not collision:
+                pg.time.delay(1000);
+                print(str(collision) + " " + str(self.start_y))
+
+                collision = self.is_collided(True);
+                self.screen.update();
+
+                if collision:
+                    self.update_grid();
+                else:
+                    self.draw_stone();
+
+            for event in pg.event.get():
+                self.handle_event(event);
+
+                self.start_y += 1;
 
 
 class GridColors:
@@ -34,199 +226,22 @@ class GridColors:
             return Colors.BLACK;
 
 
-class GameParams:
-    def __init__(self, display_size, grid_size):
-        self.display_size = display_size;
-        self.grid_size = grid_size;
-
-    def get_display_size(self):
-        return self.display_size;
-
-    def get_grid_size(self):
-        return self.grid_size;
-
-    def get_square_size(self):
-        return self.display_size / (self.grid_size + 1);
-
-    def get_partition_size(self):
-        return (self.display_size - self.grid_size * self.get_square_size()) / (self.grid_size - 1)
-
-
-def draw_grid(grid, surface, game_params):
-    """Draw grid defined by the 2D array. Values of the array elements indicate different colors present in the array"""
-    # Set screen to black
-    surface.fill(Colors.BLACK.value);
-
-    grid_size = game_params.get_grid_size();
-    square_size = game_params.get_square_size();
-    partition_size = game_params.get_partition_size();
-
-    # Draw grid
-    for i in range(grid_size):
-        for j in range(grid_size):
-            xc = 0 + square_size * i + (i - 1) * partition_size;
-            yc = 0 + square_size * j + (j - 1) * partition_size;
-
-            grid_value = grid[i][j];
-            color = GridColors.get_color(grid_value).value;
-            pg.draw.rect(surface, color,
-                         (xc, yc, game_params.get_square_size(), game_params.get_square_size()));
-
-
-def draw_stone(grid, surface, game_params, tetramino, pos_x, pos_y):
-    """Draws the tetramino in the grid. Draws grid followed by tetramino"""
-    draw_grid(grid, surface, game_params);
-    shape = tetramino.get_shape();
-
-    for i in range(len(shape.get_rows())):
-        for j in range(len(shape.get_cols())):
-            array2d = shape.array2d
-            pixel_value = array2d[i][j];
-            pixel_color = GridColors.get_color(pixel_value).value;
-
-            xi = pos_x + i;
-            yi = pos_y + j;
-
-            x = game_params.get_square_size() * xi + (xi - 1) * game_params.get_partition_size();
-            y = game_params.get_square_size() * yi + (yi - 1) * game_params.get_partition_size();
-
-            rect = (x, y, game_params.get_square_size(), game_params.get_square_size());
-            pg.draw.rect(surface, pixel_color, rect);
-
-
-def update_grid(grid, param, game_params, tetramino, pos_x, pos_y):
-    """Updates the grid values. Everytime collision happens, we need to update the grid for next iteration"""
-    shape = tetramino.get_shape();
-
-    for i in range(len(shape.get_rows())):
-        for j in range(len(shape.get_cols())):
-            array2d = shape.array2d
-            pixel_value = array2d[i][j];
-
-            xi = int(pos_x + i);
-            yi = int(pos_y + j);
-
-            # print(str(pos_x) + " " + str(pos_y) + " " + str(xi) + " " + str(yi));
-            if pixel_value != 0:
-                grid[xi][yi] = int(pixel_value);
-
-    clear_full_rows(grid);
-
-
-def clear_full_rows(grid):
-    """When any row is completely filled, clear it"""
-    for i in range(len(grid)):
-        row_full = True;
-        for j in range(len(grid[0])):
-            if grid[i][j] == 0:
-                row_full = False;
-        if row_full:
-            for j in range(len(grid[0])):
-                grid[i][j] = 0;
-
-
-def is_collided(grid, tetramino, pos_x, pos_y):
-    """Return True/False based on whether collision has happened"""
-    shape = tetramino.get_shape();
-    array2d = shape.array2d;
-
-    for i in range(len(shape.get_rows())):
-        for j in range(len(shape.get_cols())):
-            pixel_value = array2d[i][j];
-
-            xi = int(pos_x + i);
-            yi = int(pos_y + j);
-
-            # print(str(xi) + " " + str(yi));
-            if grid[xi][yi] != 0:
-                # print(str(xi) + " " + str(yi));
-                return True;
-
-            if yi == (len(grid[0]) - 1):
-                # print(str(xi) + " " + str(yi));
-                return True;
-
+def game_ended(grid):
+    top_row = grid[0];
+    print(top_row);
+    for row_value in range(len(top_row)):
+        print(row_value);
+        if row_value != 0:
+            return True;
     return False;
 
 
-def listen_for_event(grid, tetramino, start_x, start_y):
-    """Event handler"""
-    # Event handling
-    for event in pg.event.get():
-        if event.type == pg.QUIT:
-            print("Quitting game...");
-            pg.quit();
-            sys.exit();
-        if event.type == pg.KEYDOWN:
-            if event.key == pg.K_LEFT:
-                if start_x > 0:
-                    start_x -= 1;
-                return [start_x, start_y];
-            if event.key == pg.K_RIGHT:
-                if start_x + len(tetramino.get_shape().get_cols()) <= len(grid[0]):
-                    start_x += 1;
-                return [start_x, start_y];
-            if event.key == pg.K_UP:
-                tetramino.get_shape().matrix_transpose();
-                return [start_x, start_y];
-            if event.key == pg.K_DOWN:
-                if not is_collided(grid, tetramino, start_x, start_y + 1):
-                    start_y += 1;
-                return [start_x, start_y];
-
-    return [start_x, start_y];
-
-
 def main():
-    """Main method of the game"""
+    # Main method of the game
+    print(game_settings)
     # Define game parameters
-    display_size = 420;
-    grid_size = 20;
-    game_params = GameParams(display_size, grid_size);
-
-    # Initialize pygame parameters
-    pg.init();
-    screen = pg.display;
-    screen.set_mode((display_size, display_size));
-    screen.set_caption('Tetris');
-    clock = pg.time.Clock();
-    close = False;
-    pg.event.set_blocked(pg.MOUSEMOTION);
-
-    tetraminos = Tetraminos();
-    grid = create_grid(grid_size, grid_size);
-
-    while not close:
-        # Generate Tetramino
-        tetramino = tetraminos.generate_random_tetramino();
-
-        speed = 1000;
-        pg.time.delay(2 * speed);
-
-        # Print Tetramino
-        start_x = grid_size / 2;
-        start_y = 0;
-        collision = False;
-
-        while not collision:
-            collision = is_collided(grid, tetramino, start_x, start_y + 1);
-            screen.update();
-            pg.time.delay(int(speed * 0.5));
-
-            start_x, start_y = listen_for_event(grid, tetramino, start_x, start_y);
-
-            if collision:
-                update_grid(grid, screen.get_surface(), game_params, tetramino, start_x, start_y + 1);
-                break;
-            else:
-                draw_stone(grid, screen.get_surface(), game_params, tetramino, start_x, start_y + 1);
-
-            start_y += 1;
-
-        clock.tick(30);
-
-    pg.quit();
-
+    app = TetrisApp();
+    app.run();
 
 # Main
 main();

@@ -93,6 +93,9 @@ class Tetramino:
     def get_color(self):
         return self.color;
 
+    def rotate_clockwise(self):
+        self.shape = self.get_shape().matrix_transpose();
+
 
 class Tetraminos:
     tet_I = Tetramino(TetraminoShape.Shape_I, TetraminoType.I, Colors.CYAN);
@@ -131,4 +134,4 @@ class Tetraminos:
 tetraminos = Tetraminos();
 for i in range(20):
     shape = tetraminos.generate_random_tetramino().get_shape();
-    shape.print_shape();
+    #shape.print_shape();
